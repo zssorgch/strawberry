@@ -54,6 +54,12 @@ jobs:
 
       - name: Strawberry kompilieren
         run: |
+          mkdir -p /ucrt64/lib/cmake/getopt
+          cat << 'EOF' > /ucrt64/lib/cmake/getopt/getoptConfig.cmake
+          if(NOT TARGET getopt::getopt)
+            add_library(getopt::getopt INTERFACE IMPORTED)
+          endif()
+          EOF
           mkdir build
           cd build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release
