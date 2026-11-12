@@ -1,0 +1,109 @@
+name: Build Strawberry Windows Installer (x64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Quellcode herunterladen
+        uses: actions/checkout@v4
+
+      - name: MSYS2 und Abhaengigkeiten installieren
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-qt6-translations
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-taglib
+            mingw-w64-x86_64-gstreamer
+            mingw-w64-x86_64-gst-plugins-base
+            mingw-w64-x86_64-gst-plugins-good
+            mingw-w64-x86_64-gst-plugins-bad
+            mingw-w64-x86_64-gst-plugins-ugly
+            mingw-w64-x86_64-gst-libav
+            mingw-w64-x86_64-chromaprint
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-icu
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-libebur128
+            mingw-w64-x86_64-kdsingleapplication-qt6
+
+      - name: Strawberry kompilieren
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release
+          ninja -j$(nproc)
+          ninja install
+
+      - name: Alle benoetigten DLLs und Plugins buendeln
+        run: |
+          mkdir -p /c/strawberry-release/bin/platforms
+          mkdir -p /c/strawberry-release/bin/styles
+          mkdir -p /c/strawberry-release/bin/imageformats
+          mkdir -p /c/strawberry-release/bin/sqldrivers
+          mkdir -p /c/strawberry-release/lib/gstreamer-1.0
+          cp /mingw64/bin/*.dll /c/strawberry-release/bin/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/platforms/qwindows.dll /c/strawberry-release/bin/platforms/
+          cp /mingw64/share/qt6/plugins/styles/*.dll /c/strawberry-release/bin/styles/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/imageformats/*.dll /c/strawberry-release/bin/imageformats/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/sqldrivers/qsqlite.dll /c/strawberry-release/bin/sqldrivers/
+          cp /mingw64/lib/gstreamer-1.0/*.dll /c/strawberry-release/lib/gstreamer-1.0/
+
+      - name: Windows-Installer (.exe) mit Inno Setup erstellen
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          New-Item -ItemType Directory -Force -Path "C:\installer-out" | Out-Null
+          $iss = @'
+          [Setup]
+          AppName=Strawberry Music Player
+          AppVersion=1.2.31
+          DefaultDirName={autopf}\Strawberry
+          DefaultGroupName=Strawberry Music Player
+          OutputDir=C:\installer-out
+          OutputBaseFilename=StrawberrySetup-x64
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+
+          [Languages]
+          Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+          [Files]
+          Source: "C:\strawberry-release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\Strawberry Music Player"; Filename: "{app}\bin\strawberry.exe"
+          Name: "{autodesktop}\Strawberry Music Player"; Filename: "{app}\bin\strawberry.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\bin\strawberry.exe"; Description: "{cm:LaunchProgram,Strawberry Music Player}"; Flags: nowait postinstall skipifsilent
+          '@
+          Set-Content -Path "C:\strawberry.iss" -Value $iss -Encoding UTF8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "C:\strawberry.iss"
+
+      - name: Fertigen Windows-Installer hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: StrawberrySetup-x64
+          path: C:/installer-out/StrawberrySetup-x64.exe
