@@ -62,7 +62,7 @@ jobs:
           EOF
           mkdir build
           cd build
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release -DENABLE_MTP=OFF -DENABLE_LIBGPOD=OFF -DENABLE_AUDIOCD=OFF
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release -DENABLE_AUDIOCD=OFF -DENABLE_MTP=OFF -DENABLE_GPOD=OFF
           ninja -j$(nproc)
           ninja install
 
