@@ -63,7 +63,9 @@ jobs:
           cat << 'EOF' > /ucrt64/include/getopt_win.h
           #pragma once
           #include <getopt.h>
+          #ifdef __cplusplus
           #include <cwchar>
+          #include <cstring>
           #include <vector>
           #include <string>
 
@@ -83,15 +85,15 @@ jobs:
               if (argv[i]) {
                 size_t len = std::wcslen(argv[i]);
                 args_s[i].resize(len * 4 + 1);
-                std::wcstombs(&args_s[i][0], argv[i], args_s[i].size());
+                std::wcstombs(&args_s[i], argv[i], args_s[i].size());
               }
-              args_c[i] = &args_s[i][0];
+              args_c[i] = &args_s[i];
             }
             std::string opt_s;
             if (optstring) {
               size_t len = std::wcslen(optstring);
               opt_s.resize(len * 4 + 1);
-              std::wcstombs(&opt_s[0], optstring, opt_s.size());
+              std::wcstombs(&opt_s, optstring, opt_s.size());
             }
             std::vector<std::string> lnames;
             std::vector<struct option> lopts;
@@ -99,7 +101,7 @@ jobs:
               for (int i = 0; longopts[i].name != nullptr; ++i) {
                 size_t len = std::wcslen(longopts[i].name);
                 std::string n(len * 4 + 1, '\0');
-                std::wcstombs(&n[0], longopts[i].name, n.size());
+                std::wcstombs(&n, longopts[i].name, n.size());
                 lnames.push_back(std::move(n));
               }
               for (size_t i = 0; i < lnames.size(); ++i) {
@@ -112,14 +114,16 @@ jobs:
             if (optarg) {
               size_t len = std::strlen(optarg);
               woptarg.resize(len + 1);
-              std::mbstowcs(&woptarg[0], optarg, woptarg.size());
-              optarg_w = &woptarg[0];
+              std::mbstowcs(&woptarg, optarg, woptarg.size());
+              optarg_w = &woptarg;
             } else {
               optarg_w = nullptr;
             }
             return res;
           }
+          #endif
           EOF
+          sed -i '1i #include <getopt_win.h>' src/core/commandlineoptions.cpp
           mkdir build
           cd build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release -DENABLE_AUDIOCD=OFF -DENABLE_MTP=OFF -DENABLE_GPOD=OFF -DENABLE_QTSPARKLE=OFF
@@ -182,4 +186,3 @@ jobs:
         with:
           name: StrawberrySetup-x64
           path: C:/installer-out/StrawberrySetup-x64.exe
-
