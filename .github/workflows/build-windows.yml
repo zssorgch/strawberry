@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Quellcode herunterladen
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: MSYS2 UCRT64 einrichten
         uses: msys2/setup-msys2@v2
