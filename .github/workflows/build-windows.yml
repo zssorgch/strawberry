@@ -60,6 +60,66 @@ jobs:
             add_library(getopt::getopt INTERFACE IMPORTED)
           endif()
           EOF
+          cat << 'EOF' > /ucrt64/include/getopt_win.h
+          #pragma once
+          #include <getopt.h>
+          #include <cwchar>
+          #include <vector>
+          #include <string>
+
+          struct option_w {
+            const wchar_t *name;
+            int has_arg;
+            int *flag;
+            int val;
+          };
+
+          static wchar_t *optarg_w = nullptr;
+
+          static inline int getopt_long_w(int argc, wchar_t * const *argv, const wchar_t *optstring, const struct option_w *longopts, int *longindex) {
+            std::vector<std::string> args_s(argc);
+            std::vector<char*> args_c(argc);
+            for (int i = 0; i < argc; ++i) {
+              if (argv[i]) {
+                size_t len = std::wcslen(argv[i]);
+                args_s[i].resize(len * 4 + 1);
+                std::wcstombs(&args_s[i][0], argv[i], args_s[i].size());
+              }
+              args_c[i] = &args_s[i][0];
+            }
+            std::string opt_s;
+            if (optstring) {
+              size_t len = std::wcslen(optstring);
+              opt_s.resize(len * 4 + 1);
+              std::wcstombs(&opt_s[0], optstring, opt_s.size());
+            }
+            std::vector<std::string> lnames;
+            std::vector<struct option> lopts;
+            if (longopts) {
+              for (int i = 0; longopts[i].name != nullptr; ++i) {
+                size_t len = std::wcslen(longopts[i].name);
+                std::string n(len * 4 + 1, '\0');
+                std::wcstombs(&n[0], longopts[i].name, n.size());
+                lnames.push_back(std::move(n));
+              }
+              for (size_t i = 0; i < lnames.size(); ++i) {
+                lopts.push_back({lnames[i].c_str(), longopts[i].has_arg, longopts[i].flag, longopts[i].val});
+              }
+              lopts.push_back({nullptr, 0, nullptr, 0});
+            }
+            int res = getopt_long(argc, args_c.data(), opt_s.c_str(), longopts ? lopts.data() : nullptr, longindex);
+            static std::wstring woptarg;
+            if (optarg) {
+              size_t len = std::strlen(optarg);
+              woptarg.resize(len + 1);
+              std::mbstowcs(&woptarg[0], optarg, woptarg.size());
+              optarg_w = &woptarg[0];
+            } else {
+              optarg_w = nullptr;
+            }
+            return res;
+          }
+          EOF
           mkdir build
           cd build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release -DENABLE_AUDIOCD=OFF -DENABLE_MTP=OFF -DENABLE_GPOD=OFF -DENABLE_QTSPARKLE=OFF
@@ -122,3 +182,4 @@ jobs:
         with:
           name: StrawberrySetup-x64
           path: C:/installer-out/StrawberrySetup-x64.exe
+
