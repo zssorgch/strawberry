@@ -69,16 +69,17 @@ jobs:
           #include <vector>
           #include <string>
 
-          struct option_w {
+          struct getopt_win_option_w {
             const wchar_t *name;
             int has_arg;
             int *flag;
             int val;
           };
 
-          static wchar_t *optarg_w = nullptr;
+          static wchar_t *getopt_win_optarg_w = nullptr;
+          #define getopt_win_optind optind
 
-          static inline int getopt_long_w(int argc, wchar_t * const *argv, const wchar_t *optstring, const struct option_w *longopts, int *longindex) {
+          static inline int getopt_win_long_w(int argc, wchar_t * const *argv, const wchar_t *optstring, const struct getopt_win_option_w *longopts, int *longindex) {
             std::vector<std::string> args_s(argc);
             std::vector<char*> args_c(argc);
             for (int i = 0; i < argc; ++i) {
@@ -115,15 +116,14 @@ jobs:
               size_t len = std::strlen(optarg);
               woptarg.resize(len + 1);
               std::mbstowcs(woptarg.data(), optarg, woptarg.size());
-              optarg_w = woptarg.data();
+              getopt_win_optarg_w = woptarg.data();
             } else {
-              optarg_w = nullptr;
+              getopt_win_optarg_w = nullptr;
             }
             return res;
           }
           #endif
           EOF
-          sed -i '1i #include <getopt_win.h>' src/core/commandlineoptions.cpp
           mkdir build
           cd build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/c/strawberry-release -DENABLE_AUDIOCD=OFF -DENABLE_MTP=OFF -DENABLE_GPOD=OFF -DENABLE_QTSPARKLE=OFF
